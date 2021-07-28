@@ -1,1 +1,1 @@
-# ClustLP
+# ClustLP - Clustering for Link Prediction
