@@ -6,7 +6,7 @@ All the required packages can be installed by running
 pip install -r requirements.txt
 ```
 ## Usage
-To start training the Clust-LP model, run the following command:
+To start training the Clust-LP model (on WN18RR v1 as an example), run the following command:
 ```
 python train.py -d WN18RR_v1 -e grail_wn_v1
 ```
