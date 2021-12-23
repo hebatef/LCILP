@@ -1,11 +1,11 @@
-# Clust-LP: Exploiting Local Clustering for Inductive Link Prediction in Knowledge Graphs
+# Exploiting Local Clustering for Inductive Link Prediction in Knowledge Graphs
 
 All the required packages can be installed by running
 ```
 pip install -r requirements.txt
 ```
 
-To start training the model, run the following command:
+To start training the Clust-LP model, run the following command:
 ```
 python train.py -d WN18RR_v1 -e grail_wn_v1
 ```
