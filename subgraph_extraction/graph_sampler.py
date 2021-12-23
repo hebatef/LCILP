@@ -17,7 +17,8 @@ from scipy.special import softmax
 from utils.dgl_utils import _bfs_relational
 from utils.graph_utils import incidence_matrix, remove_nodes, ssp_to_torch, serialize, deserialize, get_edge_count, diameter, radius
 import networkx as nx
-
+from .multicom import approximate_ppr, conductance_sweep_cut
+from .multicom import multicom
 
 def sample_neg(adj_list, edges, num_neg_samples_per_link=1, max_size=1000000, constrained_neg_prob=0):
     pos_edges = edges
@@ -70,7 +71,7 @@ def links2subgraphs(A, graphs, params, max_label_value=None):
     '''
     extract enclosing subgraphs, write map mode + named dbs
     '''
-    max_n_label = {'value': np.array([0, 0])}
+    max_n_label = {'value': np.array([0, 0, 0])}
     subgraph_sizes = []
     enc_ratios = []
     num_pruned_nodes = []
@@ -120,6 +121,15 @@ def links2subgraphs(A, graphs, params, max_label_value=None):
         txn.put('max_n_label_sub'.encode(), (int(max_n_label['value'][0])).to_bytes(bit_len_label_sub, byteorder='little'))
         txn.put('max_n_label_obj'.encode(), (int(max_n_label['value'][1])).to_bytes(bit_len_label_obj, byteorder='little'))
 
+        print("mean: ")
+        print(float(np.mean(subgraph_sizes)))
+        print("min: ")
+        print(float(np.min(subgraph_sizes)))
+        print("max: ")
+        print(float(np.max(subgraph_sizes)))
+        print("std: ")
+        print(float(np.std(subgraph_sizes)))
+        
         txn.put('avg_subgraph_size'.encode(), struct.pack('f', float(np.mean(subgraph_sizes))))
         txn.put('min_subgraph_size'.encode(), struct.pack('f', float(np.min(subgraph_sizes))))
         txn.put('max_subgraph_size'.encode(), struct.pack('f', float(np.max(subgraph_sizes))))
@@ -185,16 +195,28 @@ def subgraph_extraction_labeling(ind, rel, A_list, h=1, enclosing_sub_graph=Fals
 
     subgraph_nei_nodes_int = root1_nei.intersection(root2_nei)
     subgraph_nei_nodes_un = root1_nei.union(root2_nei)
+    
+    # Heba's update
+    seeds, communities = multicom(A_incidence.tocsr(), set([ind[0],ind[1]]), approximate_ppr, conductance_sweep_cut)
+    cluster1 = communities[0]
+    cluster2 = communities[1]
+    
+    #subgraph_nei_nodes_int = subgraph_nei_nodes_un.intersection(cluster1).intersection(cluster2)
+    local_cluster = subgraph_nei_nodes_un.intersection(cluster1).intersection(cluster2)
+    signals = []
+    for i, n in enumerate(subgraph_nei_nodes_int):
+        if n in local_cluster:
+            signals.append(i)
 
     # Extract subgraph | Roots being in the front is essential for labelling and the model to work properly.
-    if enclosing_sub_graph:
+    if False:#enclosing_sub_graph:
         subgraph_nodes = list(ind) + list(subgraph_nei_nodes_int)
     else:
         subgraph_nodes = list(ind) + list(subgraph_nei_nodes_un)
 
     subgraph = [adj[subgraph_nodes, :][:, subgraph_nodes] for adj in A_list]
 
-    labels, enclosing_subgraph_nodes = node_label(incidence_matrix(subgraph), max_distance=h)
+    labels, enclosing_subgraph_nodes = node_label(incidence_matrix(subgraph), signals, max_distance=h)
 
     pruned_subgraph_nodes = np.array(subgraph_nodes)[enclosing_subgraph_nodes].tolist()
     pruned_labels = labels[enclosing_subgraph_nodes]
@@ -211,14 +233,22 @@ def subgraph_extraction_labeling(ind, rel, A_list, h=1, enclosing_sub_graph=Fals
     return pruned_subgraph_nodes, pruned_labels, subgraph_size, enc_ratio, num_pruned_nodes
 
 
-def node_label(subgraph, max_distance=1):
+def node_label(subgraph, signals, max_distance=1):
     # implementation of the node labeling scheme described in the paper
     roots = [0, 1]
     sgs_single_root = [remove_nodes(subgraph, [root]) for root in roots]
     dist_to_roots = [np.clip(ssp.csgraph.dijkstra(sg, indices=[0], directed=False, unweighted=True, limit=1e6)[:, 1:], 0, 1e7) for r, sg in enumerate(sgs_single_root)]
-    dist_to_roots = np.array(list(zip(dist_to_roots[0][0], dist_to_roots[1][0])), dtype=int)
-
-    target_node_labels = np.array([[0, 1], [1, 0]])
+    leng = len(dist_to_roots[0])
+    dist_to_roots = np.array(list(zip(dist_to_roots[0][0], dist_to_roots[1][0], np.zeros(subgraph.shape[0] - 2))), dtype=int)
+    
+ 
+    for i, value in enumerate(dist_to_roots):
+        if i in signals:
+            dist_to_roots[i][2] = 1
+        else:
+            dist_to_roots[i][2] = 0
+    
+    target_node_labels = np.array([[0, 1, 1], [1, 0, 1]])
     labels = np.concatenate((target_node_labels, dist_to_roots)) if dist_to_roots.size else target_node_labels
 
     enclosing_subgraph_nodes = np.where(np.max(labels, axis=1) <= max_distance)[0]
