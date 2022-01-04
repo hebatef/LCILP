@@ -196,7 +196,7 @@ def subgraph_extraction_labeling(ind, rel, A_list, h=1, enclosing_sub_graph=Fals
     subgraph_nei_nodes_int = root1_nei.intersection(root2_nei)
     subgraph_nei_nodes_un = root1_nei.union(root2_nei)
     
-    # Heba's update
+    #update
     seeds, communities = multicom(A_incidence.tocsr(), set([ind[0],ind[1]]), approximate_ppr, conductance_sweep_cut)
     cluster1 = communities[0]
     cluster2 = communities[1]
