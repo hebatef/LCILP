@@ -250,6 +250,12 @@ def subgraph_extraction_labeling(ind, rel, A_list, h=1, enclosing_sub_graph=Fals
     subgraph_nei_nodes_int = root1_nei.intersection(root2_nei)
     subgraph_nei_nodes_un = root1_nei.union(root2_nei)
     
+    # Local clustering for subgraph extraction.
+    original_seeds = set([ind[0],ind[1]])
+    seeds_none, communities = multicom(A_incidence.tocsr(), original_seeds, approximate_ppr, conductance_sweep_cut)
+    cluster = communities[0] - original_seeds
+    subgraph_nei_nodes_int = cluster.intersection(subgraph_nei_nodes_un)
+    
     if local_clustering:
         seeds = set([ind[0], ind[1]])
         seeds_, communities = multicom(A_incidence.tocsr(), seeds, approximate_ppr, conductance_sweep_cut)
