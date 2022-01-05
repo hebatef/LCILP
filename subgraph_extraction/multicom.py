@@ -142,7 +142,6 @@ def conductance_sweep_cut(adj_matrix, score, window=10):
     return best_sweep_set
 
 
-'''
 def multicom(adj_matrix, seedset, scoring, cut, explored_ratio=0.8, one_community=True):
     """
     Algorithm for multiple local community detection from a seed node.
@@ -178,101 +177,15 @@ def multicom(adj_matrix, seedset, scoring, cut, explored_ratio=0.8, one_communit
 
     if (one_community):
         scores = scoring(adj_matrix, seedset)
-        community, sorted_nodes = cut(adj_matrix, scores)
+        community = cut(adj_matrix, scores)
         communities.append(community)
     else:     
         for seed in seedset:
             scores = scoring(adj_matrix, [seed])
-            community, sorted_nodes = cut(adj_matrix, scores)
+            community = cut(adj_matrix, scores)
             communities.append(community)
-    return seedset, sorted_nodes, communities
-'''
-def multicom(adj_matrix, seed_node, scoring, cut, clustering=DBSCAN(), n_steps=5, explored_ratio=0.8):
-    """
-    Algorithm for multiple local community detection from a seed node.
-    It implements the algorithm presented by Hollocou, Bonald and Lelarge in
-    "Multiple Local Community Detection".
-    :param adj_matrix: compressed sparse row matrix or numpy 2D array
-        Adjacency matrix of the graph.
-    :param seed_node: int
-        Id of the seed node around which we want to detect communities.
-    :param scoring: function
-        Function (adj_matrix: numpy 2D array, seed_set: list or set of int) -> score: numpy 1D array.
-        Example: approximate_ppr
-    :param cut: function
-        Function (adj_matrix: numpy 2D array, score: numpy 1D array) -> sweep cut: set of int.
-        Example: conductance_sweep_cut
-    :param clustering: Scikit-Learn Cluster Estimator
-        Algorithm used to cluster nodes in the local embedding space.
-        Example: sklearn.cluster.DBSCAN()
-    :param n_steps: int, default 5
-        Parameter used to control the number of detected communities.
-    :param explored_ratio: float, default 0.8
-        Parameter used to control the number of new seeds at each step.
-    :return:
-    seeds: list of int
-        Seeds used to detect communities around the initial seed (including this original seed).
-    communities: list of set
-        Communities detected around the seed node.
-    """
-    seeds = dict()
-    scores = dict()
-    communities = list()
-    #communities = set()
-    explored = set()
+    return seedset, communities
 
-    adj_matrix = convert_adj_matrix(adj_matrix)
-    n_nodes = adj_matrix.shape[0]
-    degree = np.array(np.sum(adj_matrix, axis=0))[0]
-
-    new_seeds = seed_node#[seed_node]
-    step = -1
-    n_iter = 0
-
-    #while step < n_steps and len(new_seeds) > 0:
-    #    n_iter += 1
-
-    for new_seed in new_seeds:
-        step += 1
-        seeds[step] = new_seed
-        scores[step] = scoring(adj_matrix, [seeds[step]])
-        community = cut(adj_matrix, scores[step])
-        #communities.update(community)
-        communities.append(community)
-        # We add the community to the explored nodes
-        explored |= set(community)
-            
-        '''
-        new_seeds = list()
-
-        # Clustering of the nodes in the space (scores[seed1], scores[seed2],...,)
-        embedding = np.zeros((n_nodes, step + 1))
-        for i in range(step + 1):
-            embedding[:, i] = scores[i][:]
-        indices = np.where(np.sum(embedding, axis=1))[0]
-        y = clustering.fit_predict(embedding[indices, :])
-        clusters = defaultdict(set)
-        for i in range(y.shape[0]):
-            if y[i] != -1:
-                clusters[y[i]].add(indices[i])
-
-        # Pick new seeds in unexplored clusters
-        for c in range(len(clusters)):
-            cluster_size = 0
-            cluster_explored = 0
-            for node in clusters[c]:
-                cluster_size += 1
-                if node in explored:
-                    cluster_explored += 1
-            if float(cluster_explored) / float(cluster_size) < explored_ratio:
-                candidates = list(set(clusters[c]) - explored)
-                candidate_degrees = np.array([degree[node] for node in candidates])
-                new_seeds.append(candidates[np.argmax(candidate_degrees)])
-        '''       
-
-    #print ("Number of iterations %i" % n_iter)
-
-    return seeds.values(), communities
 
 def load_groundtruth(groundtruth_filename, delimiter='\t', comment='#'):
     """
@@ -366,48 +279,3 @@ def compute_f1_scores(communities, groundtruth):
             max_f1 = max(f1, max_f1)
         f1_scores.append(max_f1)
     return f1_scores
-
-
-COLOR = ['m', 'y', 'k',
-         '0.8', '0.2', '0.6', '0.4', '0.7', '0.3', '0.9', '0.1', '0.5']
-
-
-def plot_nx_clusters(nx_graph, communities, position, labels, figname, figsize=(40, 40), node_size=6000,
-                     plot_overlaps=False, plot_labels=False):
-    """
-    Plot a NetworkX graph with node color coding for communities.
-    :param nx_graph: NetworkX graph
-    :param communities: list of list of nodes.
-        List of communities.
-    :param position: dictionary
-       A dictionary with nodes as keys and positions as values.
-       Example: networkx.fruchterman_reingold_layout(G)
-    :param figsize: pair of float, default (8, 8)
-        Figure size.
-    :param node_size: int, default 200
-        Node size.
-    :param plot_overlaps: bool, default False
-        Flag to control if multiple community memberships are plotted.
-    :param plot_labels: bool, default False
-        Flag to control if node labels are plotted.
-    """
-    n_communities = min(len(communities), len(COLOR))
-    plt.figure(figsize=figsize)
-    plt.axis('off')
-    fig = nx.draw_networkx_nodes(nx_graph, position, node_size=node_size, node_color='w')
-    fig.set_edgecolor('k')
-    nx.draw_networkx_edges(nx_graph, position, alpha=.5)
-    nx.draw_networkx_edge_labels(nx_graph, position)
-    for i in range(n_communities):
-        if len(communities[i]) > 0:
-            if plot_overlaps:
-                size = (n_communities - i) * node_size
-            else:
-                size = node_size
-            fig = nx.draw_networkx_nodes(nx_graph, position, node_size=size,
-                                         nodelist=communities[i], node_color=COLOR[i])
-            fig.set_edgecolor('k')
-    if plot_labels:
-        nx.draw_networkx_labels(nx_graph, position, labels={node: str(label) for node,label in zip(nx_graph.nodes(),labels)})
-    #plt.show()
-    plt.savefig(figname)
