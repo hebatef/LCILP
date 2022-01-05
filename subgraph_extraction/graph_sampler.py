@@ -196,27 +196,21 @@ def subgraph_extraction_labeling(ind, rel, A_list, h=1, enclosing_sub_graph=Fals
     subgraph_nei_nodes_int = root1_nei.intersection(root2_nei)
     subgraph_nei_nodes_un = root1_nei.union(root2_nei)
     
-    #update
-    seeds, communities = multicom(A_incidence.tocsr(), set([ind[0],ind[1]]), approximate_ppr, conductance_sweep_cut)
-    cluster1 = communities[0]
-    cluster2 = communities[1]
-    
-    #subgraph_nei_nodes_int = subgraph_nei_nodes_un.intersection(cluster1).intersection(cluster2)
-    local_cluster = subgraph_nei_nodes_un.intersection(cluster1).intersection(cluster2)
-    signals = []
-    for i, n in enumerate(subgraph_nei_nodes_int):
-        if n in local_cluster:
-            signals.append(i)
+    # Local clustering for subgraph extraction.
+    original_seeds = set([ind[0],ind[1]])
+    seeds_none, communities = multicom(A_incidence.tocsr(), original_seeds, approximate_ppr, conductance_sweep_cut)
+    cluster = communities[0] - original_seeds
+    subgraph_nei_nodes_int = cluster.intersection(subgraph_nei_nodes_un)
 
     # Extract subgraph | Roots being in the front is essential for labelling and the model to work properly.
-    if False:#enclosing_sub_graph:
+    if enclosing_sub_graph:
         subgraph_nodes = list(ind) + list(subgraph_nei_nodes_int)
     else:
         subgraph_nodes = list(ind) + list(subgraph_nei_nodes_un)
 
     subgraph = [adj[subgraph_nodes, :][:, subgraph_nodes] for adj in A_list]
 
-    labels, enclosing_subgraph_nodes = node_label(incidence_matrix(subgraph), signals, max_distance=h)
+    labels, enclosing_subgraph_nodes = node_label(incidence_matrix(subgraph), max_distance=h)
 
     pruned_subgraph_nodes = np.array(subgraph_nodes)[enclosing_subgraph_nodes].tolist()
     pruned_labels = labels[enclosing_subgraph_nodes]
@@ -233,22 +227,14 @@ def subgraph_extraction_labeling(ind, rel, A_list, h=1, enclosing_sub_graph=Fals
     return pruned_subgraph_nodes, pruned_labels, subgraph_size, enc_ratio, num_pruned_nodes
 
 
-def node_label(subgraph, signals, max_distance=1):
+def node_label(subgraph, max_distance=1):
     # implementation of the node labeling scheme described in the paper
     roots = [0, 1]
     sgs_single_root = [remove_nodes(subgraph, [root]) for root in roots]
     dist_to_roots = [np.clip(ssp.csgraph.dijkstra(sg, indices=[0], directed=False, unweighted=True, limit=1e6)[:, 1:], 0, 1e7) for r, sg in enumerate(sgs_single_root)]
-    leng = len(dist_to_roots[0])
-    dist_to_roots = np.array(list(zip(dist_to_roots[0][0], dist_to_roots[1][0], np.zeros(subgraph.shape[0] - 2))), dtype=int)
-    
- 
-    for i, value in enumerate(dist_to_roots):
-        if i in signals:
-            dist_to_roots[i][2] = 1
-        else:
-            dist_to_roots[i][2] = 0
-    
-    target_node_labels = np.array([[0, 1, 1], [1, 0, 1]])
+    dist_to_roots = np.array(list(zip(dist_to_roots[0][0], dist_to_roots[1][0])), dtype=int)
+
+    target_node_labels = np.array([[0, 1], [1, 0]])
     labels = np.concatenate((target_node_labels, dist_to_roots)) if dist_to_roots.size else target_node_labels
 
     enclosing_subgraph_nodes = np.where(np.max(labels, axis=1) <= max_distance)[0]
