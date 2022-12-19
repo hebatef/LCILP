@@ -1,4 +1,4 @@
-# Exploiting Local Clustering for Inductive Link Prediction in Knowledge Graphs
+# Locality-aware subgraphs for inductive link prediction in knowledge graphs
 
 ## Dependencies
 All the required packages can be installed by running
