@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 from scipy import sparse
 from collections import deque
-#from sklearn.cluster import DBSCAN
 from collections import defaultdict
 import matplotlib.pyplot as plt
 import networkx as nx
