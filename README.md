@@ -19,4 +19,5 @@ To test the model, run the following commands:
 
 ## Acknowledgements
 This work was supported by MEMEX project funded by the European Union's Horizon 2020 research and innovation program under grant agreement No 870743.
+
 The code is implemented based on GraIL (https://github.com/kkteru/grail). Thanks for their code sharing.
