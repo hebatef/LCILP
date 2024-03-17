@@ -9,7 +9,9 @@ def initialize_experiment(params, file_name):
     Makes the experiment directory, sets standard paths and initializes the logger
     '''
     params.main_dir = os.path.join(os.path.relpath(os.path.dirname(os.path.abspath(__file__))), '..')
-    exps_dir = os.path.join(params.main_dir, 'experiments')
+
+    exps_dir = 'experiments'
+
     if not os.path.exists(exps_dir):
         os.makedirs(exps_dir)
 
@@ -44,11 +46,14 @@ def initialize_model(params, model, load_model=False):
     load_model: flag which decide to initialize the model or load a saved model
     '''
 
-    if load_model and os.path.exists(os.path.join(params.exp_dir, 'best_graph_classifier.pth')):
-        logging.info('Loading existing model from %s' % os.path.join(params.exp_dir, 'best_graph_classifier.pth'))
-        graph_classifier = torch.load(os.path.join(params.exp_dir, 'best_graph_classifier.pth')).to(device=params.device)
+    # 'experiments/grail_wn_v1//best_graph_classifier.pth' 
+    model_path = os.path.join(params.exp_dir, 'best_graph_classifier.pth')
+
+    if load_model and os.path.exists(model_path):
+        logging.info('Loading existing model from %s' % model_path)
+        graph_classifier = torch.load(model_path).to(device=params.device)
     else:
-        relation2id_path = os.path.join(params.main_dir, f'data/{params.dataset}/relation2id.json')
+        relation2id_path = f'data/{params.dataset}/relation2id.json'
         with open(relation2id_path) as f:
             relation2id = json.load(f)
 
