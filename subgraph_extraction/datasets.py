@@ -144,7 +144,7 @@ class SubgraphDataset(Dataset):
         subgraph.edata['type'] = self.graph.edata['type'][self.graph.subgraph(nodes).parent_eid]
         subgraph.edata['label'] = torch.tensor(r_label * np.ones(subgraph.edata['type'].shape), dtype=torch.long)
 
-        edges_btw_roots = subgraph.edge_id(0, 1)
+        edges_btw_roots = subgraph.edge_id(0, 1, return_array=True)
         rel_link = np.nonzero(subgraph.edata['type'][edges_btw_roots] == r_label)
         if rel_link.squeeze().nelement() == 0:
             subgraph.add_edge(0, 1)
