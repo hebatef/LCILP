@@ -71,7 +71,7 @@ def links2subgraphs(A, graphs, params, max_label_value=None):
     '''
     extract enclosing subgraphs, write map mode + named dbs
     '''
-    max_n_label = {'value': np.array([0, 0, 0])}
+    max_n_label = {'value': np.array([0, 0])}
     subgraph_sizes = []
     enc_ratios = []
     num_pruned_nodes = []
